@@ -23,7 +23,6 @@
  */
 package com.dotmaui.vulturecss.core;
 
-import com.dotmaui.api.cssmin.DotMauiCSSMinifyClient;
 import static com.dotmaui.vulturecss.core.VultureCSSCoreParser.CSSUtility.getRulesFromString;
 import static com.dotmaui.vulturecss.core.VultureCSSCoreParser.extractAllStyleSheetsUrls;
 import com.dotmaui.vulturecss.models.Carcass;
@@ -105,10 +104,6 @@ public class VultureCSSCore {
 
         if (!this.html.equals("") && this.htmlUrl != null) {
             throw new Exception("It is currently not possible to specify URLs and strings simultaneously");
-        }
-
-        if (this.options.isCDNMode() && Functions.isNullOrWhitespace(this.options.getDotMauiApiKey())) {
-            throw new Exception("Specify a valid API key");
         }
 
         if (this.cssUrl != null) {
@@ -200,33 +195,6 @@ public class VultureCSSCore {
             Carcass carcass = new Carcass();
             carcass.setUsedCSS(used_css);
             carcasses.add(carcass);
-
-        }
-
-        // If CDN mode is enabled, I cycle through all the carcasses and save each CSS in a file on the CDN.
-        if (this.options.isCDNMode()) {
-
-            DotMauiCSSMinifyClient client = new DotMauiCSSMinifyClient(this.options.getDotMauiApiKey());
-            client.setMode(1);
-
-            int i = 1;
-
-            for (Carcass c : carcasses) {
-
-                String file_name = "c".concat(String.valueOf(i)).concat(".css");
-
-                i++;
-
-                client.setName(file_name);
-
-                String responseCdn = client.minifyCSSFromString(c.getUsedCSS());
-                JSONObject obj = new JSONObject(responseCdn);
-
-                String fileUrl = obj.getString("url");
-
-                c.setCdnUrl(fileUrl);
-
-            }
 
         }
 

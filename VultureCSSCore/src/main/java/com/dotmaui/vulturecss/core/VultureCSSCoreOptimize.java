@@ -1,3 +1,4 @@
+
 /*
  * The MIT License
  *
@@ -15,120 +16,151 @@
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
  */
 package com.dotmaui.vulturecss.core;
 
-import com.dotmaui.vulturecss.models.CarcassDeclaration;
 import com.helger.css.decl.CSSDeclaration;
 import com.helger.css.decl.CSSMediaRule;
 import com.helger.css.decl.CSSSelector;
 import com.helger.css.decl.CSSStyleRule;
 import com.helger.css.decl.ICSSTopLevelRule;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-public class VultureCSSCoreOptimize {
+/**
+ * Provides conservative CSS optimization methods.
+ *
+ * The optimizer removes only declarations that are exact duplicates.
+ * It preserves declaration order, selector order, media queries and
+ * unsupported nested rules to avoid changing the original CSS behavior.
+ *
+ * @author .Maui
+ * @version 1.2
+ */
+public final class VultureCSSCoreOptimize {
+
+    private VultureCSSCoreOptimize() {
+        // Utility class.
+    }
 
     /**
-     * Optimizes a given CSSMediaRule by merging and deduplicating its contained CSSStyleRules.
-     * 
-     * @param cssMediaRule The CSSMediaRule to optimize.
-     * @return A new optimized CSSMediaRule.
+     * Optimizes the style rules contained in a media rule.
+     *
+     * All media queries and nested rules are preserved.
+     *
+     * @param cssMediaRule the media rule to optimize
+     * @return a new optimized media rule, or null if the input is null
      */
     public static CSSMediaRule optimizeMediaRule(CSSMediaRule cssMediaRule) {
 
-        CSSMediaRule optimizedMediaRule = new CSSMediaRule();
-        List<CSSStyleRule> allStyleRules = new ArrayList<>();
-
-        // Collect all style rules from the media rule
-        for (ICSSTopLevelRule rule : cssMediaRule.getAllRules()) {
-            allStyleRules.add((CSSStyleRule) rule);
+        if (cssMediaRule == null) {
+            return null;
         }
 
-        // Optimize the style rules by removing duplicates
-        List<CSSStyleRule> optimizedStyleRules = optimizeCSSStyleRules(allStyleRules);
+        CSSMediaRule optimizedMediaRule = new CSSMediaRule();
 
-        // Add the media query to the optimized media rule
-        optimizedMediaRule.addMediaQuery(cssMediaRule.getMediaQueryAtIndex(0));
+        // Preserve all media queries.
+        for (var mediaQuery : cssMediaRule.getAllMediaQueries()) {
+            optimizedMediaRule.addMediaQuery(mediaQuery);
+        }
 
-        // Add the optimized style rules to the new media rule
-        for (CSSStyleRule optimizedRule : optimizedStyleRules) {
-            optimizedMediaRule.addRule(optimizedRule);
+        // Preserve the original rule order and optimize only style rules.
+        for (ICSSTopLevelRule rule : cssMediaRule.getAllRules()) {
+
+            if (rule instanceof CSSStyleRule styleRule) {
+
+                List<CSSStyleRule> optimizedRules =
+                        optimizeCSSStyleRules(List.of(styleRule));
+
+                for (CSSStyleRule optimizedRule : optimizedRules) {
+                    optimizedMediaRule.addRule(optimizedRule);
+                }
+
+            } else if (rule != null) {
+
+                // Preserve nested and unsupported CSS rules.
+                optimizedMediaRule.addRule(rule);
+            }
         }
 
         return optimizedMediaRule;
     }
 
     /**
-     * Optimizes a list of CSSStyleRules by removing duplicate declarations and handling
-     * !important rules correctly.
-     * 
-     * @param rules The list of CSSStyleRules to optimize.
-     * @return A list of optimized CSSStyleRules.
+     * Removes exact duplicate declarations from CSS style rules.
+     *
+     * The original declaration order is preserved. Only declarations
+     * with identical serialized CSS representations are considered
+     * duplicates.
+     *
+     * This conservative approach preserves fallback declarations,
+     * shorthand/longhand combinations and !important precedence.
+     *
+     * @param rules the style rules to optimize
+     * @return a list of optimized style rules
      */
-    public static List<CSSStyleRule> optimizeCSSStyleRules(List<CSSStyleRule> rules) {
+    public static List<CSSStyleRule> optimizeCSSStyleRules(
+            List<CSSStyleRule> rules) {
 
         List<CSSStyleRule> optimizedStyleRules = new ArrayList<>();
 
-        // Iterate over each rule to optimize its declarations
+        if (rules == null || rules.isEmpty()) {
+            return optimizedStyleRules;
+        }
+
         for (CSSStyleRule cssStyleRule : rules) {
 
-            List<CSSDeclaration> originalDeclarations = cssStyleRule.getAllDeclarations();
-            List<CarcassDeclaration> optimizedDeclarations = new ArrayList<>();
-
-            // Process declarations in reverse order to ensure latest declarations take precedence
-            for (int i = originalDeclarations.size() - 1; i >= 0; i--) {
-
-                CSSDeclaration declaration = originalDeclarations.get(i);
-                String property = declaration.getAsCSSString().split(":")[0].trim();
-                String value = declaration.getAsCSSString().split(":")[1].trim();
-                boolean isImportant = value.endsWith("!important") || value.endsWith("!important;");
-
-                boolean found = false;
-
-                // Check if the property has already been processed
-                for (CarcassDeclaration optimizedDeclaration : optimizedDeclarations) {
-                    String existingProperty = optimizedDeclaration.getDeclaration().getAsCSSString().split(":")[0].trim();
-
-                    // If property matches and the new declaration is !important, replace the existing one
-                    if (property.equals(existingProperty)) {
-                        if (isImportant) {
-                            optimizedDeclaration.setDeclaration(declaration);
-                        }
-                        found = true;
-                        break;
-                    }
-                }
-
-                // If property was not found, add it to the list of optimized declarations
-                if (!found) {
-                    optimizedDeclarations.add(new CarcassDeclaration(isImportant, property, declaration));
-                }
+            if (cssStyleRule == null) {
+                continue;
             }
 
-            // Create a new CSSStyleRule with optimized declarations
+            List<CSSDeclaration> originalDeclarations =
+                    cssStyleRule.getAllDeclarations();
+
             CSSStyleRule optimizedStyleRule = new CSSStyleRule();
 
-            // Copy the selectors from the original rule
+            // Preserve all selectors in their original order.
             for (CSSSelector selector : cssStyleRule.getAllSelectors()) {
                 optimizedStyleRule.addSelector(selector);
             }
 
-            // Add the optimized declarations to the new rule
-            for (CarcassDeclaration optimizedDeclaration : optimizedDeclarations) {
-                optimizedStyleRule.addDeclaration(optimizedDeclaration.getDeclaration());
+            // Find duplicate declarations starting from the end.
+            // This ensures that the last identical declaration is kept.
+            Set<String> seenDeclarations = new HashSet<>();
+            boolean[] keepDeclaration =
+                    new boolean[originalDeclarations.size()];
+
+            for (int i = originalDeclarations.size() - 1; i >= 0; i--) {
+
+                CSSDeclaration declaration = originalDeclarations.get(i);
+
+                if (declaration == null) {
+                    continue;
+                }
+
+                String declarationText =
+                        declaration.getAsCSSString().trim();
+
+                if (seenDeclarations.add(declarationText)) {
+                    keepDeclaration[i] = true;
+                }
             }
 
-            // Add the optimized rule to the final list
+            // Rebuild the rule in its original declaration order.
+            for (int i = 0; i < originalDeclarations.size(); i++) {
+
+                if (keepDeclaration[i]) {
+                    optimizedStyleRule.addDeclaration(
+                            originalDeclarations.get(i));
+                }
+            }
+
             optimizedStyleRules.add(optimizedStyleRule);
         }
 
         return optimizedStyleRules;
     }
 }
-

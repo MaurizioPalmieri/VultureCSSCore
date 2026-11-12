@@ -1,3 +1,4 @@
+
 /*
  * The MIT License
  *
@@ -15,18 +16,13 @@
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
  */
 package com.dotmaui.vulturecss.core;
 
 import com.helger.commons.collection.impl.ICommonsList;
 import com.helger.css.decl.CSSDeclaration;
 import com.helger.css.decl.CSSImportRule;
-import com.helger.css.decl.CSSMediaRule;
 import com.helger.css.decl.CSSSelector;
 import com.helger.css.decl.CSSStyleRule;
 import com.helger.css.decl.CascadingStyleSheet;
@@ -34,122 +30,181 @@ import com.helger.css.decl.ICSSTopLevelRule;
 import java.util.ArrayList;
 import java.util.List;
 
-public class VultureCSSCoreMergify {
+/**
+ * Provides conservative CSS rule merging methods.
+ *
+ * Only consecutive style rules with identical selector lists are merged.
+ * This preserves the original cascade order and avoids moving declarations
+ * across unrelated CSS rules.
+ *
+ * Other rule types are preserved without modification.
+ *
+ * @author .Maui
+ * @version 1.2
+ */
+public final class VultureCSSCoreMergify {
 
-    /**
-     * Merges and optimizes CSS rules from a list of ICSSTopLevelRule.
-     *
-     * @param rules The list of CSS top-level rules to merge.
-     * @return A CascadingStyleSheet containing the merged rules.
-     */
-    public static CascadingStyleSheet MergeRules(ICommonsList<ICSSTopLevelRule> rules) {
-
-        CascadingStyleSheet newStyleSheetWithAllDeclarations = new CascadingStyleSheet();
-        int importRulesIndex = 0;
-        List<String> alreadyInserted = new ArrayList<>();
-
-        // Iterate over each rule to combine CSS rules intelligently
-        for (ICSSTopLevelRule rule : rules) {
-
-            if (rule instanceof CSSMediaRule cssMediaRule) {
-                String mediaQueryDef = cssMediaRule.getAllMediaQueries().get(0).getAsCSSString();
-
-                if (!alreadyInserted.contains(mediaQueryDef)) {
-                    int endColumn = cssMediaRule.getSourceLocation().getLastTokenEndColumnNumber();
-
-                    // Merge media queries with the same definition
-                    for (ICSSTopLevelRule ruleCompare : rules) {
-                        if (ruleCompare instanceof CSSMediaRule cssMediaRuleCompare) {
-                            String mediaQueryCompareDef = cssMediaRuleCompare.getAllMediaQueries().get(0).getAsCSSString();
-                            int endColumnCompare = cssMediaRuleCompare.getSourceLocation().getLastTokenEndColumnNumber();
-
-                            if (mediaQueryDef.equals(mediaQueryCompareDef) && endColumnCompare > endColumn) {
-                                alreadyInserted.add(mediaQueryDef);
-
-                                // Add all style rules from the comparison rule
-                                for (CSSStyleRule styleRule : cssMediaRuleCompare.getAllStyleRules()) {
-                                    cssMediaRule.addRule(styleRule);
-                                }
-                            }
-                        }
-                    }
-
-                    // Add the merged media rule to the final stylesheet
-                    newStyleSheetWithAllDeclarations.addRule(cssMediaRule);
-                }
-
-            } else if (rule instanceof CSSStyleRule cssStyleRule) {
-
-                // Combine CSSStyleRules with the same selector
-                StringBuilder allSelector = new StringBuilder();
-                for (CSSSelector selector : cssStyleRule.getAllSelectors()) {
-                    allSelector.append(selector.getAsCSSString()).append(",");
-                }
-
-                String selectorString = allSelector.substring(0, allSelector.length() - 1);
-
-                if (!alreadyInserted.contains(selectorString) && cssStyleRule.getDeclarationAtIndex(0) != null) {
-                    int endColumn = cssStyleRule.getDeclarationAtIndex(0).getSourceLocation().getLastTokenEndColumnNumber();
-
-                    // Compare and merge style rules with identical selectors
-                    for (ICSSTopLevelRule ruleCompare : rules) {
-                        if (ruleCompare instanceof CSSStyleRule cssStyleRuleCompare) {
-                            StringBuilder allSelectorCompare = new StringBuilder();
-                            for (CSSSelector selector : cssStyleRuleCompare.getAllSelectors()) {
-                                allSelectorCompare.append(selector.getAsCSSString()).append(",");
-                            }
-
-                            String selectorCompareString = allSelectorCompare.substring(0, allSelectorCompare.length() - 1);
-
-                            if (cssStyleRuleCompare.getDeclarationAtIndex(0) != null) {
-                                int endColumnCompare = cssStyleRuleCompare.getDeclarationAtIndex(0).getSourceLocation().getLastTokenEndColumnNumber();
-
-                                // If the selectors match and the current rule ends later, merge the declarations
-                                if (selectorString.equals(selectorCompareString) && endColumnCompare > endColumn) {
-                                    alreadyInserted.add(selectorString);
-
-                                    // Add all declarations from the comparison rule
-                                    for (CSSDeclaration declaration : cssStyleRuleCompare.getAllDeclarations()) {
-                                        cssStyleRule.addDeclaration(declaration);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    newStyleSheetWithAllDeclarations.addRule(cssStyleRule);
-                }
-
-            } else if (rule instanceof CSSImportRule cSSImportRule) {
-                // Handle import rules separately
-                newStyleSheetWithAllDeclarations.addImportRule(importRulesIndex, cSSImportRule);
-                importRulesIndex++;
-
-            } else if (rule != null) {
-                // Handle other types of CSS rules (e.g., viewport, supports)
-                newStyleSheetWithAllDeclarations.addRule(rule);
-            } else {
-                throw new UnsupportedOperationException();
-            }
-        }
-
-        // Optimize the media rules by merging nested style rules
-        ICommonsList<ICSSTopLevelRule> allRules = newStyleSheetWithAllDeclarations.getAllRules();
-        for (ICSSTopLevelRule rule : allRules) {
-            if (rule instanceof CSSMediaRule cSSMediaRule) {
-                CascadingStyleSheet tempStyleSheet = new CascadingStyleSheet();
-                for (CSSStyleRule optimized : cSSMediaRule.getAllStyleRules()) {
-                    tempStyleSheet.addRule(optimized);
-                }
-                cSSMediaRule.removeAllRules();
-                CascadingStyleSheet mergedTempStyleSheet = MergeRules(tempStyleSheet.getAllRules());
-                for (CSSStyleRule optimized : mergedTempStyleSheet.getAllStyleRules()) {
-                    cSSMediaRule.addRule(optimized);
-                }
-            }
-        }
-
-        return newStyleSheetWithAllDeclarations;
+    private VultureCSSCoreMergify() {
+        // Utility class.
     }
 
+    /**
+     * Merges consecutive CSS style rules with identical selectors.
+     *
+     * The original stylesheet and its rules are not modified.
+     *
+     * @param rules the CSS top-level rules to process
+     * @return a stylesheet containing the merged rules
+     */
+    public static CascadingStyleSheet MergeRules(
+            ICommonsList<ICSSTopLevelRule> rules) {
+
+        CascadingStyleSheet result = new CascadingStyleSheet();
+
+        if (rules == null || rules.isEmpty()) {
+            return result;
+        }
+
+        int importRulesIndex = 0;
+        int index = 0;
+
+        while (index < rules.size()) {
+
+            ICSSTopLevelRule currentRule = rules.get(index);
+
+            if (currentRule == null) {
+                index++;
+                continue;
+            }
+
+            if (currentRule instanceof CSSStyleRule styleRule) {
+
+                String selectorKey = getSelectorKey(styleRule);
+
+                if (selectorKey == null) {
+                    result.addRule(styleRule);
+                    index++;
+                    continue;
+                }
+
+                List<CSSStyleRule> consecutiveRules = new ArrayList<>();
+                consecutiveRules.add(styleRule);
+
+                int nextIndex = index + 1;
+
+                // Merge only immediately consecutive rules with identical selectors.
+                while (nextIndex < rules.size()) {
+
+                    ICSSTopLevelRule nextRule = rules.get(nextIndex);
+
+                    if (!(nextRule instanceof CSSStyleRule nextStyleRule)) {
+                        break;
+                    }
+
+                    String nextSelectorKey = getSelectorKey(nextStyleRule);
+
+                    if (!selectorKey.equals(nextSelectorKey)) {
+                        break;
+                    }
+
+                    consecutiveRules.add(nextStyleRule);
+                    nextIndex++;
+                }
+
+                if (consecutiveRules.size() == 1) {
+
+                    result.addRule(styleRule);
+
+                } else {
+
+                    CSSStyleRule mergedRule = mergeConsecutiveStyleRules(
+                            consecutiveRules);
+
+                    result.addRule(mergedRule);
+                }
+
+                index = nextIndex;
+
+            } else if (currentRule instanceof CSSImportRule importRule) {
+
+                result.addImportRule(importRulesIndex, importRule);
+                importRulesIndex++;
+
+                index++;
+
+            } else {
+
+                // Preserve media queries, supports rules and all other rules.
+                result.addRule(currentRule);
+                index++;
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Merges the declarations of consecutive style rules.
+     *
+     * Selector and declaration order are preserved.
+     *
+     * @param rules the consecutive style rules
+     * @return a new merged style rule
+     */
+    private static CSSStyleRule mergeConsecutiveStyleRules(
+            List<CSSStyleRule> rules) {
+
+        CSSStyleRule mergedRule = new CSSStyleRule();
+
+        if (rules == null || rules.isEmpty()) {
+            return mergedRule;
+        }
+
+        CSSStyleRule firstRule = rules.get(0);
+
+        // Copy selectors from the first rule.
+        for (CSSSelector selector : firstRule.getAllSelectors()) {
+            mergedRule.addSelector(selector);
+        }
+
+        // Append declarations in their original cascade order.
+        for (CSSStyleRule rule : rules) {
+
+            for (CSSDeclaration declaration : rule.getAllDeclarations()) {
+                mergedRule.addDeclaration(declaration);
+            }
+        }
+
+        return mergedRule;
+    }
+
+    /**
+     * Creates a stable representation of a style rule's selector list.
+     *
+     * @param rule the style rule
+     * @return the selector representation, or null if no selectors exist
+     */
+    private static String getSelectorKey(CSSStyleRule rule) {
+
+        if (rule == null || rule.getAllSelectors().isEmpty()) {
+            return null;
+        }
+
+        StringBuilder key = new StringBuilder();
+
+        for (CSSSelector selector : rule.getAllSelectors()) {
+
+            if (selector == null) {
+                return null;
+            }
+
+            if (!key.isEmpty()) {
+                key.append(',');
+            }
+
+            key.append(selector.getAsCSSString());
+        }
+
+        return key.toString();
+    }
 }

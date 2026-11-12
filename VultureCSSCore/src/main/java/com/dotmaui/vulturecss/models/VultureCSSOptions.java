@@ -27,37 +27,7 @@ import com.helger.css.ECSSVersion;
 import java.util.List;
 
 public class VultureCSSOptions {
-
-    private String DotMauiApiKey = null;
-
-    /**
-     * Get the value of dotMauiApiKey
-     *
-     * @return the value of dotMauiApiKey
-     */
-    public String getDotMauiApiKey() {
-        return DotMauiApiKey;
-    }
-
-    /**
-     * Set the value of dotMauiApiKey
-     *
-     * @param dotMauiApiKey new value of dotMauiApiKey
-     */
-    public void setDotMauiApiKey(String dotMauiApiKey) {
-        this.DotMauiApiKey = dotMauiApiKey;
-    }
-
-    private boolean CDNMode = false;
-
-    public boolean isCDNMode() {
-        return CDNMode;
-    }
-
-    public void setCDNMode(boolean CDNMode) {
-        this.CDNMode = CDNMode;
-    }
-
+    
     /**
      * If true, all used CSS will be merged into a single file or string.
      */

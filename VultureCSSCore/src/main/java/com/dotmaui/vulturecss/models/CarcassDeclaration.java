@@ -1,3 +1,4 @@
+
 /*
  * The MIT License
  *
@@ -15,86 +16,101 @@
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
  */
 package com.dotmaui.vulturecss.models;
 
 import com.helger.css.decl.CSSDeclaration;
 
 /**
+ * Represents a CSS declaration and its optimization metadata.
  *
  * @author .Maui
+ * @version 1.1
  */
 public class CarcassDeclaration {
 
-    public CarcassDeclaration(boolean isImportant, String selector, CSSDeclaration declaration) {
+    private boolean isImportant;
+    private String selector;
+    private CSSDeclaration declaration;
+
+    /**
+     * Creates a new declaration metadata object.
+     *
+     * @param isImportant whether the declaration uses !important
+     * @param selector the CSS property or selector associated with the declaration
+     * @param declaration the original CSS declaration
+     */
+    public CarcassDeclaration(
+            boolean isImportant,
+            String selector,
+            CSSDeclaration declaration) {
+
         this.isImportant = isImportant;
         this.selector = selector;
         this.declaration = declaration;
     }
 
-    private boolean isImportant;
+    /**
+     * Returns whether the declaration is marked as !important.
+     *
+     * @return true if the declaration is important
+     */
+    public boolean isImportant() {
+        return isImportant;
+    }
 
     /**
-     * Get the value of isImportant
+     * Legacy getter retained for backward compatibility.
      *
-     * @return the value of isImportant
+     * @return true if the declaration is important
      */
     public boolean isIsImportant() {
         return isImportant;
     }
 
     /**
-     * Set the value of isImportant
+     * Updates the importance flag.
      *
-     * @param isImportant new value of isImportant
+     * @param isImportant the new importance value
      */
     public void setIsImportant(boolean isImportant) {
         this.isImportant = isImportant;
     }
 
-    private String selector;
-
     /**
-     * Get the value of selector
+     * Returns the associated selector or property identifier.
      *
-     * @return the value of selector
+     * @return the selector or property identifier
      */
     public String getSelector() {
         return selector;
     }
 
     /**
-     * Set the value of selector
+     * Updates the associated selector or property identifier.
      *
-     * @param selector new value of selector
+     * @param selector the new selector or property identifier
      */
     public void setSelector(String selector) {
         this.selector = selector;
     }
 
-    private CSSDeclaration declaration;
-
     /**
-     * Get the value of declaration
+     * Returns the original CSS declaration.
      *
-     * @return the value of declaration
+     * @return the CSS declaration
      */
     public CSSDeclaration getDeclaration() {
         return declaration;
     }
 
     /**
-     * Set the value of declaration
+     * Updates the CSS declaration.
      *
-     * @param declaration new value of declaration
+     * @param declaration the new CSS declaration
      */
     public void setDeclaration(CSSDeclaration declaration) {
         this.declaration = declaration;
     }
-
 }
